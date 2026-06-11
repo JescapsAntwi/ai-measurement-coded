@@ -21,7 +21,7 @@ This demo uses your phone camera to:
 
 ### Important: HTTPS Required
 
-Camera access requires HTTPS, even for testing. You have two options:
+Camera access requires HTTPS, even for testing. You can use any of these two options:
 
 ### Option 1: Using Vercel (Recommended)
 
@@ -139,7 +139,7 @@ The demo generates `measurements.json` with this structure:
 
 ## Next Steps for Integration
 
-To integrate this into the Coded platform:
+For Us To integrate this into the Coded platform:
 
 1. Add authentication to ensure only paid merchants can access
 2. Store measurements in Django backend (PostgreSQL database)
