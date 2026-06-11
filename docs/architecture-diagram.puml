@@ -1,0 +1,115 @@
+@startuml Coded_Virtual_TryOn_And_Measurement_Architecture
+
+!define AWSPUML https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v14.0/dist
+!include AWSPUML/common.puml
+!include AWSPUML/ApplicationIntegration/APIGateway.puml
+!include AWSPUML/Compute/Lambda.puml
+!include AWSPUML/Database/DynamoDB.puml
+
+skinparam backgroundColor #FAFAFA
+skinparam componentStyle uml2
+
+title Coded Application Services: Virtual Try-On & Measurement Architecture
+
+package "Merchant Frontend (Vercel)" #E8F4F8 {
+    component "Product Catalog\n(AI Clean Images)" as ProductCatalog
+    component "Virtual Try-On Interface" as TryOnUI
+    component "Measurement Scanner UI" as ScannerUI
+    component "Basket & Checkout" as Checkout
+}
+
+package "Client-Side Processing" #F0E8F8 {
+    component "MediaPipe Plugin\n(33 Body Landmarks)" as MediaPipe
+    component "Try-On Model Selector\n(Pre-set Styles)" as ModelSelector
+    component "Photo Upload Handler" as PhotoHandler
+}
+
+package "Coded Backend (Supabase)" #E8F8E8 {
+    database "Merchant Data" as MerchantDB {
+        card "Account & Subscription Status" as SubStatus
+        card "Inventory Metadata\n(20 images max)" as InventoryMeta
+    }
+    
+    database "Customer Data" as CustomerDB {
+        card "Measurements\n(33 Landmarks)" as Measurements
+        card "Order History" as OrderHistory
+    }
+    
+    component "API Gateway & Auth" as APIGateway
+    component "Image Metadata Service" as ImageService
+    component "Measurement Storage Service" as MeasureService
+}
+
+package "AI Processing Layer" #F8E8E8 {
+    component "Google Gemini 2.5 Flash\n(Image Processing)" as GoogleAI
+    component "Prompt Templates\n(Clean, Try-On, Detection)" as PromptEngine
+}
+
+package "Payment & Billing" #F8F0E8 {
+    component "Hubtel Integration\n(GHS 75/month)" as Hubtel
+    component "Subscription Gatekeeper" as SubGate
+}
+
+package "Distribution Channels" #E8F8F0 {
+    component "WhatsApp Integration" as WhatsApp
+    component "Telegram Integration" as Telegram
+    component "Basket Link Generator" as BasketGen
+}
+
+' Merchant Workflow Connections
+ProductCatalog --> ImageService: Request AI-cleaned images
+TryOnUI --> ModelSelector: Select model style
+TryOnUI --> PhotoHandler: Upload garment photo
+ScannerUI --> MediaPipe: Scan body landmarks
+Checkout --> BasketGen: Generate basket link
+
+' Client Processing Flow
+PhotoHandler --> GoogleAI: Send image + prompt
+ModelSelector --> PromptEngine: Retrieve try-on template
+MediaPipe --> ScannerUI: Output 33 landmarks
+
+' Backend Processing Flow
+GoogleAI --> PromptEngine: Process with template
+PromptEngine --> ImageService: Update image metadata
+ImageService --> InventoryMeta: Store/Update inventory
+MeasureService --> Measurements: Store scanned data
+
+' Authentication & Authorization
+APIGateway --> SubStatus: Verify subscription
+SubGate --> SubStatus: Check if active
+APIGateway -.-> MerchantDB: Gate API access
+
+' Billing Flow
+Hubtel --> SubStatus: Sync subscription status
+Hubtel --> SubGate: Update payment state
+
+' Checkout Flow
+Checkout --> BasketGen: Complete basket
+BasketGen --> WhatsApp: Export to WhatsApp
+BasketGen --> Telegram: Export to Telegram
+BasketGen --> Measurements: Attach measurements
+WhatsApp --> OrderHistory: Store order reference
+
+' Revenue Security
+SubGate -.-> ProductCatalog: Hide inventory if unpaid
+SubGate -.-> TryOnUI: Lock features if unpaid
+
+note right of MediaPipe
+  Browser-based, no app download
+  Uses phone GPU
+  Runs on merchant's Vercel site
+end note
+
+note right of GoogleAI
+  Free tier: Gemini 2.5 Flash (Nano Banana)
+  Image cleaning & garment draping
+  Near-zero compute cost
+end note
+
+note right of Hubtel
+  Ghana-specific MoMo & Card payments
+  Monthly recurring billing
+  Subscription-gated access
+end note
+
+@enduml

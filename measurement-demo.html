@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coded - Body Measurement Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 900px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 24px;
+        }
+        
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        #video-feed {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        #canvas-output {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .status {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .status.error {
+            border-left-color: #f56565;
+            background: #fff5f5;
+        }
+        
+        .status.success {
+            border-left-color: #48bb78;
+            background: #f0fff4;
+        }
+        
+        .status-text {
+            font-size: 14px;
+            color: #2d3748;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            min-width: 140px;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #edf2f7;
+            color: #2d3748;
+        }
+        
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+        
+        .results {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .results h2 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: #2d3748;
+        }
+        
+        .measurement-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .measurement-item {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .measurement-label {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .measurement-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        
+        .recommendation {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .recommendation h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #2d3748;
+        }
+        
+        .recommendation p {
+            font-size: 14px;
+            color: #4a5568;
+            line-height: 1.5;
+        }
+        
+        .size-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 8px 0;
+        }
+        
+        .instructions {
+            background: #fff8e1;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffa726;
+        }
+        
+        .instructions h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #e65100;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+            color: #5d4037;
+        }
+        
+        .instructions li {
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 640px) {
+            .button-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+            
+            .measurement-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Body Measurement Scanner</h1>
+            <p>AI-powered measurements for perfect fit tailoring</p>
+        </div>
+        
+        <div class="content">
+            <div class="instructions">
+                <h3>How to get accurate measurements:</h3>
+                <ul>
+                    <li>Stand 2-3 meters away from camera</li>
+                    <li>Ensure good lighting (natural light works best)</li>
+                    <li>Face the camera with full body visible</li>
+                    <li>Stand still and arms slightly away from body</li>
+                    <li>Wear fitted clothing for better accuracy</li>
+                </ul>
+            </div>
+            
+            <div class="status" id="status">
+                <div class="status-text">Click "Start Camera" to begin scanning</div>
+            </div>
+            
+            <div class="video-container" style="display: none;" id="video-container">
+                <video id="video-feed" playsinline></video>
+                <canvas id="canvas-output"></canvas>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn-primary" id="start-btn" onclick="startCamera()">Start Camera</button>
+                <button class="btn-primary" id="capture-btn" onclick="captureMeasurements()" disabled style="display: none;">Capture Measurements</button>
+                <button class="btn-secondary" id="download-btn" onclick="downloadJSON()" style="display: none;">Download JSON</button>
+            </div>
+            
+            <div class="results" id="results">
+                <h2>Your Measurements</h2>
+                <div class="measurement-grid" id="measurements-grid"></div>
+                <div class="recommendation" id="recommendation"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="measurement-scanner.js"></script>
+</body>
+</html>

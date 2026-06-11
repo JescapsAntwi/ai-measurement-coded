@@ -1,0 +1,14 @@
+{
+  "chest_cm": 98,
+  "waist_cm": 85,
+  "hips_cm": 102,
+  "inseam_cm": 78,
+  "sleeve_length_cm": 62,
+  "height_cm": 175,
+  "recommended_size": "M",
+  "fit_note": "Medium - Standard fit",
+  "confidence_percent": 87,
+  "accuracy_note": "Good accuracy",
+  "timestamp": "2026-06-11T14:23:45.123Z",
+  "raw_landmarks_count": 33
+}
