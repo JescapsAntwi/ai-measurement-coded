@@ -6,6 +6,7 @@ let canvasElement = null;
 let canvasCtx = null;
 let latestLandmarks = null;
 let measurementData = null;
+let currentFacingMode = 'user'; // 'user' for front camera, 'environment' for back camera
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -42,13 +43,14 @@ async function startCamera() {
         // Show video container
         document.getElementById('video-container').style.display = 'block';
         
-        // Initialize camera
+        // Initialize camera with facing mode
         camera = new Camera(videoElement, {
             onFrame: async () => {
                 await pose.send({image: videoElement});
             },
             width: 640,
-            height: 480
+            height: 480,
+            facingMode: currentFacingMode
         });
         
         await camera.start();
@@ -57,12 +59,48 @@ async function startCamera() {
         document.getElementById('start-btn').style.display = 'none';
         document.getElementById('capture-btn').style.display = 'block';
         document.getElementById('capture-btn').disabled = false;
+        document.getElementById('flip-btn').style.display = 'block';
         
         updateStatus('Camera active. Position yourself and click "Capture Measurements"', 'success');
         
     } catch (error) {
         console.error('Error starting camera:', error);
         updateStatus('Error: ' + error.message + '. Make sure you are using HTTPS.', 'error');
+    }
+}
+
+/**
+ * Flip between front and back camera
+ */
+async function flipCamera() {
+    try {
+        updateStatus('Switching camera...', 'info');
+        
+        // Stop current camera
+        if (camera) {
+            camera.stop();
+        }
+        
+        // Toggle facing mode
+        currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+        
+        // Restart camera with new facing mode
+        camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await pose.send({image: videoElement});
+            },
+            width: 640,
+            height: 480,
+            facingMode: currentFacingMode
+        });
+        
+        await camera.start();
+        
+        updateStatus('Camera switched. Position yourself and click "Capture Measurements"', 'success');
+        
+    } catch (error) {
+        console.error('Error flipping camera:', error);
+        updateStatus('Error switching camera: ' + error.message, 'error');
     }
 }
 
@@ -138,6 +176,11 @@ function getMeasurements(rawLandmarks) {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
     
+    // Helper function to convert cm to inches
+    function cmToInches(cm) {
+        return Math.round(cm / 2.54 * 10) / 10; // Round to 1 decimal place
+    }
+    
     // Calculate reference height (nose to average ankle position)
     const avgAnkleY = (rawLandmarks[LEFT_ANKLE].y + rawLandmarks[RIGHT_ANKLE].y) / 2;
     const heightInPixels = Math.abs(rawLandmarks[NOSE].y - avgAnkleY);
@@ -151,23 +194,27 @@ function getMeasurements(rawLandmarks) {
         rawLandmarks[LEFT_SHOULDER],
         rawLandmarks[RIGHT_SHOULDER]
     );
-    const chestCm = Math.round((shoulderWidth * pixelToCmRatio) * 2.5); // Chest is ~2.5x shoulder width
+    const chestCm = (shoulderWidth * pixelToCmRatio) * 2.5; // Chest is ~2.5x shoulder width
+    const chestInches = cmToInches(chestCm);
     
     // Calculate waist width (hip area, slightly above actual hips)
     const hipWidth = distance(
         rawLandmarks[LEFT_HIP],
         rawLandmarks[RIGHT_HIP]
     );
-    const waistCm = Math.round((hipWidth * pixelToCmRatio) * 2.3); // Waist multiplier
+    const waistCm = (hipWidth * pixelToCmRatio) * 2.3; // Waist multiplier
+    const waistInches = cmToInches(waistCm);
     
     // Calculate hip width
-    const hipsCm = Math.round((hipWidth * pixelToCmRatio) * 2.8); // Hips are wider
+    const hipsCm = (hipWidth * pixelToCmRatio) * 2.8; // Hips are wider
+    const hipsInches = cmToInches(hipsCm);
     
     // Calculate inseam (hip to ankle)
     const leftInseam = Math.abs(rawLandmarks[LEFT_HIP].y - rawLandmarks[LEFT_ANKLE].y);
     const rightInseam = Math.abs(rawLandmarks[RIGHT_HIP].y - rawLandmarks[RIGHT_ANKLE].y);
     const avgInseam = (leftInseam + rightInseam) / 2;
-    const inseamCm = Math.round(avgInseam * pixelToCmRatio);
+    const inseamCm = avgInseam * pixelToCmRatio;
+    const inseamInches = cmToInches(inseamCm);
     
     // Calculate arm length (shoulder to elbow approximate)
     const leftArmLength = distance(
@@ -179,28 +226,30 @@ function getMeasurements(rawLandmarks) {
         rawLandmarks[RIGHT_ELBOW]
     );
     const avgArmLength = (leftArmLength + rightArmLength) / 2;
-    const sleeveLengthCm = Math.round((avgArmLength * pixelToCmRatio) * 2); // Full sleeve is ~2x shoulder-to-elbow
+    const sleeveLengthCm = (avgArmLength * pixelToCmRatio) * 2; // Full sleeve is ~2x shoulder-to-elbow
+    const sleeveLengthInches = cmToInches(sleeveLengthCm);
     
     // Calculate total height estimate
-    const heightCm = Math.round(heightInPixels * pixelToCmRatio);
+    const heightCm = heightInPixels * pixelToCmRatio;
+    const heightInches = cmToInches(heightCm);
     
-    // Determine recommended size based on chest measurement
+    // Determine recommended size based on chest measurement (using inches)
     let recommendedSize;
     let fitNote;
     
-    if (chestCm < 86) {
+    if (chestInches < 34) {
         recommendedSize = 'XS';
         fitNote = 'Extra Small - Best for slim builds';
-    } else if (chestCm < 94) {
+    } else if (chestInches < 37) {
         recommendedSize = 'S';
         fitNote = 'Small - Fitted cut recommended';
-    } else if (chestCm < 102) {
+    } else if (chestInches < 40) {
         recommendedSize = 'M';
         fitNote = 'Medium - Standard fit';
-    } else if (chestCm < 110) {
+    } else if (chestInches < 43) {
         recommendedSize = 'L';
         fitNote = 'Large - Comfortable fit';
-    } else if (chestCm < 118) {
+    } else if (chestInches < 46) {
         recommendedSize = 'XL';
         fitNote = 'Extra Large - Relaxed fit';
     } else {
@@ -222,12 +271,12 @@ function getMeasurements(rawLandmarks) {
     }
     
     return {
-        chest_cm: chestCm,
-        waist_cm: waistCm,
-        hips_cm: hipsCm,
-        inseam_cm: inseamCm,
-        sleeve_length_cm: sleeveLengthCm,
-        height_cm: heightCm,
+        chest_inches: chestInches,
+        waist_inches: waistInches,
+        hips_inches: hipsInches,
+        inseam_inches: inseamInches,
+        sleeve_length_inches: sleeveLengthInches,
+        height_inches: heightInches,
         recommended_size: recommendedSize,
         fit_note: fitNote,
         confidence_percent: confidencePercent,
@@ -278,12 +327,12 @@ function displayResults(data) {
     
     // Create measurement cards
     const measurements = [
-        { label: 'Chest', value: data.chest_cm + ' cm' },
-        { label: 'Waist', value: data.waist_cm + ' cm' },
-        { label: 'Hips', value: data.hips_cm + ' cm' },
-        { label: 'Inseam', value: data.inseam_cm + ' cm' },
-        { label: 'Sleeve Length', value: data.sleeve_length_cm + ' cm' },
-        { label: 'Height', value: data.height_cm + ' cm' }
+        { label: 'Chest', value: data.chest_inches + ' in' },
+        { label: 'Waist', value: data.waist_inches + ' in' },
+        { label: 'Hips', value: data.hips_inches + ' in' },
+        { label: 'Inseam', value: data.inseam_inches + ' in' },
+        { label: 'Sleeve Length', value: data.sleeve_length_inches + ' in' },
+        { label: 'Height', value: data.height_inches + ' in' }
     ];
     
     measurements.forEach(m => {

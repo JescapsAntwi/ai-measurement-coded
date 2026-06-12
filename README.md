@@ -6,9 +6,10 @@ A working demo of the AI measurement feature using Google MediaPipe Pose for bod
 
 This demo uses your phone camera to:
 1. Detect 33 body landmarks (shoulders, hips, knees, ankles, etc.)
-2. Calculate key measurements (chest, waist, hips, inseam, sleeve length, height)
+2. Calculate key measurements in inches (chest, waist, hips, inseam, sleeve length, height)
 3. Recommend clothing size based on measurements
 4. Export results as JSON file
+5. Switch between front and back camera
 
 ## Files Included
 
@@ -67,11 +68,12 @@ For quick desktop testing with webcam:
 ## How to Use
 
 1. Click "Start Camera" and grant camera permission
-2. Position yourself 2-3 meters away from camera
-3. Ensure good lighting and full body is visible
-4. Stand still with arms slightly away from body
-5. Click "Capture Measurements"
-6. View results and click "Download JSON" to save
+2. Use "Flip Camera" button to switch between front/back camera if needed
+3. Position yourself 2-3 meters away from camera
+4. Ensure good lighting and full body is visible
+5. Stand still with arms slightly away from body
+6. Click "Capture Measurements"
+7. View results in inches and click "Download JSON" to save
 
 ## Output Format
 
@@ -79,12 +81,12 @@ The demo generates `measurements.json` with this structure:
 
 ```json
 {
-  "chest_cm": 98,
-  "waist_cm": 85,
-  "hips_cm": 102,
-  "inseam_cm": 78,
-  "sleeve_length_cm": 62,
-  "height_cm": 175,
+  "chest_inches": 38.6,
+  "waist_inches": 33.5,
+  "hips_inches": 40.2,
+  "inseam_inches": 30.7,
+  "sleeve_length_inches": 24.4,
+  "height_inches": 68.9,
   "recommended_size": "M",
   "fit_note": "Medium - Standard fit",
   "confidence_percent": 87,
@@ -110,11 +112,12 @@ The demo generates `measurements.json` with this structure:
 3. Estimate height using nose-to-ankle distance
 4. Convert pixel measurements to centimeters using height calibration
 5. Apply multipliers for chest/waist/hips based on skeletal width
-6. Recommend size based on chest measurement using standard sizing chart
+6. Convert all measurements from centimeters to inches (divide by 2.54)
+7. Recommend size based on chest measurement using standard sizing chart
 
 ### Accuracy Notes
 
-- Measurements have ±3-5cm margin of error
+- Measurements have ±1-2 inch margin of error
 - Accuracy depends on:
   - Lighting quality (natural light works best)
   - Camera distance (2-3 meters optimal)
