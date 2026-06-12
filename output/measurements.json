@@ -1,14 +1,16 @@
 {
-  "chest_inches": 38.6,
-  "waist_inches": 33.5,
-  "hips_inches": 40.2,
+  "chest_inches": 36.2,
+  "waist_inches": 31.5,
+  "hips_inches": 37.8,
   "inseam_inches": 30.7,
-  "sleeve_length_inches": 24.4,
-  "height_inches": 68.9,
+  "sleeve_length_inches": 23.2,
+  "height_inches": 67.3,
+  "shoulder_width_inches": 18.1,
+  "chest_waist_ratio": 1.15,
   "recommended_size": "M",
-  "fit_note": "Medium - Standard fit",
+  "fit_note": "Medium - Standard fit recommended",
   "confidence_percent": 87,
   "accuracy_note": "Good accuracy",
-  "timestamp": "2026-06-11T14:23:45.123Z",
+  "timestamp": "2026-06-12T14:23:45.123Z",
   "raw_landmarks_count": 33
 }

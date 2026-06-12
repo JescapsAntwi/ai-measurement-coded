@@ -167,6 +167,8 @@ function getMeasurements(rawLandmarks) {
     const LEFT_ELBOW = 13;
     const RIGHT_ELBOW = 14;
     const NOSE = 0;
+    const LEFT_EYE = 2;
+    const RIGHT_EYE = 5;
     
     // Helper function to calculate Euclidean distance between two points
     function distance(point1, point2) {
@@ -181,32 +183,40 @@ function getMeasurements(rawLandmarks) {
         return Math.round(cm / 2.54 * 10) / 10; // Round to 1 decimal place
     }
     
-    // Calculate reference height (nose to average ankle position)
+    // Calculate reference height using multiple body segments for better accuracy
     const avgAnkleY = (rawLandmarks[LEFT_ANKLE].y + rawLandmarks[RIGHT_ANKLE].y) / 2;
-    const heightInPixels = Math.abs(rawLandmarks[NOSE].y - avgAnkleY);
+    const avgEyeY = (rawLandmarks[LEFT_EYE].y + rawLandmarks[RIGHT_EYE].y) / 2;
+    const heightInPixels = Math.abs(avgEyeY - avgAnkleY);
     
-    // Assume average human height of 170cm for calibration
-    const assumedHeightCm = 170;
+    // Use a more conservative height assumption (165cm average for mixed gender populations)
+    const assumedHeightCm = 165;
     const pixelToCmRatio = assumedHeightCm / heightInPixels;
     
-    // Calculate shoulder width (chest proxy)
+    // Calculate shoulder width more accurately
     const shoulderWidth = distance(
         rawLandmarks[LEFT_SHOULDER],
         rawLandmarks[RIGHT_SHOULDER]
     );
-    const chestCm = (shoulderWidth * pixelToCmRatio) * 2.5; // Chest is ~2.5x shoulder width
+    
+    // CRITICAL FIX: Reduced multiplier from 2.5 to 2.0
+    // Shoulder width to chest circumference is closer to 2.0x for average builds
+    const shoulderWidthCm = shoulderWidth * pixelToCmRatio;
+    const chestCm = shoulderWidthCm * 2.0;
     const chestInches = cmToInches(chestCm);
     
-    // Calculate waist width (hip area, slightly above actual hips)
+    // Calculate waist width - also reduced multiplier
     const hipWidth = distance(
         rawLandmarks[LEFT_HIP],
         rawLandmarks[RIGHT_HIP]
     );
-    const waistCm = (hipWidth * pixelToCmRatio) * 2.3; // Waist multiplier
+    const hipWidthCm = hipWidth * pixelToCmRatio;
+    
+    // CRITICAL FIX: Reduced from 2.3 to 1.9 for waist
+    const waistCm = hipWidthCm * 1.9;
     const waistInches = cmToInches(waistCm);
     
-    // Calculate hip width
-    const hipsCm = (hipWidth * pixelToCmRatio) * 2.8; // Hips are wider
+    // CRITICAL FIX: Reduced from 2.8 to 2.2 for hips
+    const hipsCm = hipWidthCm * 2.2;
     const hipsInches = cmToInches(hipsCm);
     
     // Calculate inseam (hip to ankle)
@@ -226,35 +236,58 @@ function getMeasurements(rawLandmarks) {
         rawLandmarks[RIGHT_ELBOW]
     );
     const avgArmLength = (leftArmLength + rightArmLength) / 2;
-    const sleeveLengthCm = (avgArmLength * pixelToCmRatio) * 2; // Full sleeve is ~2x shoulder-to-elbow
+    const sleeveLengthCm = (avgArmLength * pixelToCmRatio) * 1.8; // Reduced from 2.0 to 1.8
     const sleeveLengthInches = cmToInches(sleeveLengthCm);
     
     // Calculate total height estimate
     const heightCm = heightInPixels * pixelToCmRatio;
     const heightInches = cmToInches(heightCm);
     
-    // Determine recommended size based on chest measurement (using inches)
+    // IMPROVED SIZE RECOMMENDATION LOGIC
+    // Uses chest AND waist ratio for better accuracy
+    // Matches real-world US/International sizing standards
+    
+    const chestWaistRatio = chestInches / waistInches;
     let recommendedSize;
     let fitNote;
+    let sizeCategory;
     
-    if (chestInches < 34) {
+    // Determine size based on chest measurement (primary factor)
+    if (chestInches < 33) {
         recommendedSize = 'XS';
-        fitNote = 'Extra Small - Best for slim builds';
-    } else if (chestInches < 37) {
+        sizeCategory = 'xs';
+        fitNote = 'Extra Small';
+    } else if (chestInches < 36) {
         recommendedSize = 'S';
-        fitNote = 'Small - Fitted cut recommended';
-    } else if (chestInches < 40) {
+        sizeCategory = 's';
+        fitNote = 'Small';
+    } else if (chestInches < 39) {
         recommendedSize = 'M';
-        fitNote = 'Medium - Standard fit';
-    } else if (chestInches < 43) {
+        sizeCategory = 'm';
+        fitNote = 'Medium';
+    } else if (chestInches < 42) {
         recommendedSize = 'L';
-        fitNote = 'Large - Comfortable fit';
+        sizeCategory = 'l';
+        fitNote = 'Large';
     } else if (chestInches < 46) {
         recommendedSize = 'XL';
-        fitNote = 'Extra Large - Relaxed fit';
+        sizeCategory = 'xl';
+        fitNote = 'Extra Large';
     } else {
         recommendedSize = 'XXL';
-        fitNote = 'Double XL - Generous fit for comfort';
+        sizeCategory = 'xxl';
+        fitNote = 'Double XL';
+    }
+    
+    // Add body type context based on chest-to-waist ratio
+    if (chestWaistRatio > 1.25) {
+        fitNote += ' - Athletic build, consider fitted cut';
+    } else if (chestWaistRatio > 1.15) {
+        fitNote += ' - Standard fit recommended';
+    } else if (chestWaistRatio > 1.05) {
+        fitNote += ' - Relaxed fit may be more comfortable';
+    } else {
+        fitNote += ' - Consider sizing up for comfort';
     }
     
     // Calculate confidence score based on landmark visibility
@@ -262,12 +295,17 @@ function getMeasurements(rawLandmarks) {
     const avgVisibility = visibilityScores.reduce((a, b) => a + b, 0) / visibilityScores.length;
     const confidencePercent = Math.round(avgVisibility * 100);
     
-    // Add accuracy note
+    // Add accuracy note with more context
     let accuracyNote = 'Good accuracy';
     if (confidencePercent < 70) {
         accuracyNote = 'Low confidence - improve lighting or move closer';
     } else if (confidencePercent < 85) {
         accuracyNote = 'Moderate accuracy - ensure full body is visible';
+    }
+    
+    // Add measurement quality warning if multipliers seem off
+    if (shoulderWidthCm < 30 || shoulderWidthCm > 60) {
+        accuracyNote = 'Measurement may be inaccurate - adjust distance or posture';
     }
     
     return {
@@ -277,6 +315,8 @@ function getMeasurements(rawLandmarks) {
         inseam_inches: inseamInches,
         sleeve_length_inches: sleeveLengthInches,
         height_inches: heightInches,
+        shoulder_width_inches: cmToInches(shoulderWidthCm),
+        chest_waist_ratio: Math.round(chestWaistRatio * 100) / 100,
         recommended_size: recommendedSize,
         fit_note: fitNote,
         confidence_percent: confidencePercent,
@@ -330,9 +370,11 @@ function displayResults(data) {
         { label: 'Chest', value: data.chest_inches + ' in' },
         { label: 'Waist', value: data.waist_inches + ' in' },
         { label: 'Hips', value: data.hips_inches + ' in' },
+        { label: 'Shoulder Width', value: data.shoulder_width_inches + ' in' },
         { label: 'Inseam', value: data.inseam_inches + ' in' },
         { label: 'Sleeve Length', value: data.sleeve_length_inches + ' in' },
-        { label: 'Height', value: data.height_inches + ' in' }
+        { label: 'Height', value: data.height_inches + ' in' },
+        { label: 'Body Ratio', value: data.chest_waist_ratio + ':1' }
     ];
     
     measurements.forEach(m => {
